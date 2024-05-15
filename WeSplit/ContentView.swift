@@ -9,47 +9,57 @@ import SwiftUI
 import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @State private var checkAmount = 0.0
+    @State private var numOfPeople = 2
+    @State private var tip = 20
+    @FocusState private var amountIsFocused: Bool
+    let tipValues = [0, 10, 15, 20, 25]
+    
+    var totalAmount: Double {
+        return ((1+Double(tip)/100)*checkAmount)
+    }
+    
+    var totalPerPerson: Double {
+        return ((1+Double(tip)/100)*checkAmount)/Double(numOfPeople+2)
+    }
 
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Amount", value: $checkAmount, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
+                        .keyboardType(.decimalPad)
+                        .focused($amountIsFocused)
+                }
+                Picker("Number of people", selection: $numOfPeople) {
+                    ForEach(2..<100) {
+                        Text("\($0) people")
                     }
                 }
-                .onDelete(perform: deleteItems)
+                
+                Section("How much do you want to tip?") {
+                    Picker("Tip Percentage", selection: $tip) {
+                        ForEach(0..<101) {
+                            Text($0, format: .percent)
+                        }
+                    }
+                }
+                
+                Section("Total Amount") {
+                    Text(totalAmount, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
+                }
+                
+                Section("Amount per person") {
+                    Text(totalPerPerson, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
+                }
             }
+            .navigationTitle("We Split")
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
+                if amountIsFocused {
+                    Button("Done") {
+                        amountIsFocused = false
                     }
                 }
-            }
-        } detail: {
-            Text("Select an item")
-        }
-    }
-
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
             }
         }
     }
